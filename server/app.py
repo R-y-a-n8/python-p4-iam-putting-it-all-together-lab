@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 
-from flask import request, session, jsonify, Flask
-from flask_restful import Resource
+from flask import Flask, request, session, jsonify
+from flask_restful import Resource, Api
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User, Recipe  # Now import after initializing db
 from sqlalchemy.exc import IntegrityError
-from config import app, db, api
-from models import User, Recipe
 
-# Adding a home route for testing
+app = Flask(__name__)
+app.secret_key = "your_secret_key"  # Replace with a strong secret key
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'  # Add your DB URI here
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # To disable the modification tracking feature
+db.init_app(app)  # Initialize the app with db
+
+api = Api(app)
+
+# Root route to test if the app is running
 @app.route('/')
 def home():
-    return 'Hello, World!'
+    return "Welcome to the Recipe App!"
 
 class Signup(Resource):
     def post(self):
@@ -20,9 +28,15 @@ class Signup(Resource):
         image_url = data.get("image_url")
         bio = data.get("bio")
 
+        # Password validation
+        if len(password) < 6:
+            return {"error": "Password must be at least 6 characters long."}, 422
+
+        # Create a hashed password
+        hashed_password = generate_password_hash(password)
+
         try:
-            user = User(username=username, image_url=image_url, bio=bio)
-            user.password_hash = password  
+            user = User(username=username, password_hash=hashed_password, image_url=image_url, bio=bio)
             db.session.add(user)
             db.session.commit()
 
@@ -58,7 +72,7 @@ class Login(Resource):
         password = data.get("password")
 
         user = User.query.filter_by(username=username).first()
-        if user and user.authenticate(password):
+        if user and check_password_hash(user.password_hash, password):
             session["user_id"] = user.id
             return jsonify({
                 "id": user.id,
@@ -101,10 +115,11 @@ class RecipeIndex(Resource):
             instructions = data.get("instructions")
             minutes_to_complete = data.get("minutes_to_complete")
 
-            if not title or not instructions or len(instructions) < 50:
-                return {
-                    "error": "Invalid recipe. Title and instructions (at least 50 characters) are required."
-                }, 422
+            # Recipe validation
+            if not title or len(title.strip()) == 0:
+                return {"error": "Title is required."}, 422
+            if not instructions or len(instructions) < 50:
+                return {"error": "Instructions must be at least 50 characters long."}, 422
 
             recipe = Recipe(
                 title=title,
@@ -127,11 +142,13 @@ class RecipeIndex(Resource):
             }), 201
         return {"error": "Unauthorized"}, 401
 
+# Routes for Signup, CheckSession, Login, Logout, and RecipeIndex
 api.add_resource(Signup, '/signup', endpoint='signup')
 api.add_resource(CheckSession, '/check_session', endpoint='check_session')
 api.add_resource(Login, '/login', endpoint='login')
 api.add_resource(Logout, '/logout', endpoint='logout')
 api.add_resource(RecipeIndex, '/recipes', endpoint='recipes')
 
+# Run the app
 if __name__ == '__main__':
     app.run(port=5555, debug=True)

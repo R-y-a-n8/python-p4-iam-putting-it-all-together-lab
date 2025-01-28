@@ -1,7 +1,11 @@
-from sqlalchemy.orm import validates
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
-from config import db, bcrypt
+from sqlalchemy.orm import validates  # Ensure this import is correct
+from config import bcrypt
+
+# Initialize db instance
+db = SQLAlchemy()
 
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
@@ -11,6 +15,7 @@ class User(db.Model, SerializerMixin):
     email = db.Column(db.String(120), nullable=False, unique=True)
     _password_hash = db.Column(db.String(128), nullable=False)
     bio = db.Column(db.String(500))  # Added bio field
+    image_url = db.Column(db.String(500))
 
     recipes = db.relationship('Recipe', backref='user', lazy=True)
 
@@ -27,17 +32,18 @@ class User(db.Model, SerializerMixin):
     def authenticate(self, password):
         return bcrypt.check_password_hash(self._password_hash, password)
 
-    @validates('email')
+    @validates('email')  # Validating email
     def validate_email(self, key, email):
         if '@' not in email:
             raise ValueError("Provided email is invalid.")
         return email
 
-    @validates('username')
+    @validates('username')  # Validating username
     def validate_username(self, key, username):
         if len(username) < 3:
             raise ValueError("Username must be at least 3 characters long.")
         return username
+
 
 class Recipe(db.Model, SerializerMixin):
     __tablename__ = 'recipes'
@@ -50,13 +56,13 @@ class Recipe(db.Model, SerializerMixin):
 
     serialize_rules = ('-user.recipes',)
 
-    @validates('title')
+    @validates('title')  # Validating title
     def validate_title(self, key, title):
         if len(title) < 3:
             raise ValueError("Title must be at least 3 characters long.")
         return title
 
-    @validates('minutes_to_complete')
+    @validates('minutes_to_complete')  # Validating minutes_to_complete
     def validate_minutes_to_complete(self, key, minutes):
         if minutes <= 0:
             raise ValueError("Minutes to complete must be greater than 0.")
