@@ -2,7 +2,6 @@
 
 from random import randint, choice as rc
 from faker import Faker
-
 from app import app
 from models import db, Recipe, User
 
@@ -14,41 +13,33 @@ with app.app_context():
     Recipe.query.delete()
     User.query.delete()
 
-    print("Creating users...")
-
-    
+    # Create sample users
     users = []
-    usernames = []
-
-    for i in range(20):
-        username = fake.first_name()
-        while username in usernames:  
-            username = fake.first_name()
-        usernames.append(username)
-
+    for _ in range(5):
         user = User(
-            username=username,
+            username=fake.user_name(),
             email=fake.email(),
+            password_hash=fake.password(),
+            bio=fake.text(max_nb_chars=200)
         )
-        user.password_hash = f"{username}password"  
         users.append(user)
 
     db.session.add_all(users)
+    db.session.commit()
 
-    print("Creating recipes...")
-
-    
+    # Create sample recipes
     recipes = []
-    for i in range(100):
-        recipe = Recipe(
-            title=fake.sentence(nb_words=3).rstrip('.'),
-            instructions=fake.paragraph(nb_sentences=8),
-            minutes_to_complete=randint(15, 90),
-            user=rc(users),  
-        )
-        recipes.append(recipe)
+    for user in users:
+        for _ in range(3):
+            recipe = Recipe(
+                title=fake.sentence(nb_words=4),
+                instructions=fake.text(max_nb_chars=200),
+                minutes_to_complete=randint(20, 120),
+                user_id=user.id
+            )
+            recipes.append(recipe)
 
     db.session.add_all(recipes)
-
     db.session.commit()
-    print("Seeding complete.")
+
+    print("Database seeded!")

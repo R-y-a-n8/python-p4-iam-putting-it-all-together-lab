@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
-from flask import request, session, jsonify
+from flask import request, session, jsonify, Flask
 from flask_restful import Resource
 from sqlalchemy.exc import IntegrityError
-
 from config import app, db, api
 from models import User, Recipe
+
+# Adding a home route for testing
+@app.route('/')
+def home():
+    return 'Hello, World!'
 
 class Signup(Resource):
     def post(self):

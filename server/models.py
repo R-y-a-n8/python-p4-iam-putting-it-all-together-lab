@@ -1,7 +1,6 @@
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
-
 from config import db, bcrypt
 
 class User(db.Model, SerializerMixin):
@@ -11,14 +10,12 @@ class User(db.Model, SerializerMixin):
     username = db.Column(db.String(80), nullable=False, unique=True)
     email = db.Column(db.String(120), nullable=False, unique=True)
     _password_hash = db.Column(db.String(128), nullable=False)
+    bio = db.Column(db.String(500))  # Added bio field
 
-    
     recipes = db.relationship('Recipe', backref='user', lazy=True)
 
-    
     serialize_rules = ('-recipes.user', '-_password_hash')
 
-     
     @hybrid_property
     def password_hash(self):
         return self._password_hash
@@ -30,7 +27,6 @@ class User(db.Model, SerializerMixin):
     def authenticate(self, password):
         return bcrypt.check_password_hash(self._password_hash, password)
 
-   
     @validates('email')
     def validate_email(self, key, email):
         if '@' not in email:
@@ -43,7 +39,6 @@ class User(db.Model, SerializerMixin):
             raise ValueError("Username must be at least 3 characters long.")
         return username
 
-
 class Recipe(db.Model, SerializerMixin):
     __tablename__ = 'recipes'
 
@@ -53,10 +48,8 @@ class Recipe(db.Model, SerializerMixin):
     minutes_to_complete = db.Column(db.Integer, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
-    
     serialize_rules = ('-user.recipes',)
 
-   
     @validates('title')
     def validate_title(self, key, title):
         if len(title) < 3:
