@@ -1,8 +1,11 @@
 from sqlalchemy.exc import IntegrityError
 import pytest
 
-from app import app
+from app import create_app
 from models import db, User, Recipe
+
+
+app = create_app()
 
 class TestUser:
     '''User in models.py'''

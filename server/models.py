@@ -1,25 +1,22 @@
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
-from sqlalchemy.orm import validates  # Ensure this import is correct
+from sqlalchemy.orm import validates
 from config import bcrypt
-
-# Initialize db instance
-db = SQLAlchemy()
+from extensions import db  # Import db from app, not initialized here.
 
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), nullable=False, unique=True)
-    email = db.Column(db.String(120), nullable=False, unique=True)
     _password_hash = db.Column(db.String(128), nullable=False)
-    bio = db.Column(db.String(500))  # Added bio field
+    bio = db.Column(db.String(500))  # Bio field added
     image_url = db.Column(db.String(500))
 
-    recipes = db.relationship('Recipe', backref='user', lazy=True)
+    # Relationship with Recipe
+    recipes = db.relationship('Recipe', backref='user', lazy=True, cascade="all, delete-orphan")
 
-    serialize_rules = ('-recipes.user', '-_password_hash')
+    serialize_rules = ('-recipes.user', '-_password_hash')  # Exclude user from recipes
 
     @hybrid_property
     def password_hash(self):
@@ -32,38 +29,28 @@ class User(db.Model, SerializerMixin):
     def authenticate(self, password):
         return bcrypt.check_password_hash(self._password_hash, password)
 
-    @validates('email')  # Validating email
-    def validate_email(self, key, email):
-        if '@' not in email:
-            raise ValueError("Provided email is invalid.")
-        return email
-
-    @validates('username')  # Validating username
-    def validate_username(self, key, username):
-        if len(username) < 3:
-            raise ValueError("Username must be at least 3 characters long.")
-        return username
-
 
 class Recipe(db.Model, SerializerMixin):
     __tablename__ = 'recipes'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
-    instructions = db.Column(db.Text, nullable=False)
+    instructions = db.Column(db.String(500), nullable=False)
     minutes_to_complete = db.Column(db.Integer, nullable=False)
+
+    # Foreign Key relationship
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
-    serialize_rules = ('-user.recipes',)
+    serialize_rules = ('-user.recipes',)  # Exclude recipes from user
 
-    @validates('title')  # Validating title
+    @validates('title')
     def validate_title(self, key, title):
-        if len(title) < 3:
-            raise ValueError("Title must be at least 3 characters long.")
+        if not title or len(title.strip()) == 0:
+            raise ValueError("Title is required.")
         return title
 
-    @validates('minutes_to_complete')  # Validating minutes_to_complete
-    def validate_minutes_to_complete(self, key, minutes):
-        if minutes <= 0:
-            raise ValueError("Minutes to complete must be greater than 0.")
-        return minutes
+    @validates('instructions')
+    def validate_instructions(self, key, instructions):
+        if not instructions or len(instructions) < 50:
+            raise ValueError("Instructions must be at least 50 characters long.")
+        return instructions
