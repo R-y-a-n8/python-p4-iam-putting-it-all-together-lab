@@ -4,6 +4,9 @@ from models import db, User, Recipe  # Import the necessary models
 import pytest
 from random import randint
 from faker import Faker
+from server.app import app, db
+from server.models import User, Recipe
+
 
 # Create the app instance for testing
 app = create_app()
