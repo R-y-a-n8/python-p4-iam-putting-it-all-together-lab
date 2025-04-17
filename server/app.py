@@ -10,29 +10,45 @@ from models import User, Recipe
 class Signup(Resource):
     def post(self):
         data = request.get_json()
-        username = data.get('username')
-        password = data.get('password')
-        image_url = data.get('image_url')
-        bio = data.get('bio')
+        
+        # Check for required fields
+        required_fields = ['username', 'password', 'image_url', 'bio']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            return {'errors': [f'{field} is required' for field in missing_fields]}, 422
 
-        new_user = User(
-            username=username,
-            image_url=image_url,
-            bio=bio
-        )
-        new_user.password_hash = password  # This will use the setter to hash the password
+        username = data['username']
+        password = data['password']
+        image_url = data['image_url']
+        bio = data['bio']
 
         try:
+            new_user = User(
+                username=username,
+                image_url=image_url,
+                bio=bio
+            )
+            new_user.password_hash = password  # This will use the setter to hash the password
+
             db.session.add(new_user)
             db.session.commit()
+            
             session['user_id'] = new_user.id
             return new_user.to_dict(), 201
+        
         except IntegrityError:
             db.session.rollback()
             return {'errors': ['Username already exists']}, 422
+        
         except ValueError as e:
             db.session.rollback()
             return {'errors': [str(e)]}, 422
+        
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error during signup: {str(e)}")
+            return {'errors': ['An error occurred during signup']}, 422
 
 class CheckSession(Resource):
     def get(self):
